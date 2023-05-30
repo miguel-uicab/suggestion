@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API lambda Suggested V
+Globals:
+  Function:
+    Timeout: 100
+
+Parameters:
+  Environment:
+    Type: String
+  BucketApp:
+    Type: String
+  DockerTag:
+    Type: String
+    Default: dev
+
+
+Resources:
+  SuggestedVAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Sub ${Environment}
+      TracingEnabled: true
+
+  SuggestedVFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub SuggestedV-${Environment}
+      Tracing: Active
+      PackageType: Image
+      MemorySize: 5000
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17' # Policy Document
+          Statement:
+           - Effect: Allow
+             Action:
+              - s3:GetObjectAcl
+              - s3:GetObject
+              - s3:ListBucket
+             Resource:
+              - !Sub 'arn:aws:s3:::${BucketApp}'
+              - !Sub 'arn:aws:s3:::${BucketApp}/*'
+      Environment:
+        Variables:
+          MyBucket: !Sub ${BucketApp}
+
+      Events:
+        calculate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SuggestedVAPI
+            Path: /suggested-v
+            Method: post
+
+    Metadata:
+      DockerTag: !Ref DockerTag
+      DockerContext: ./project
+      Dockerfile: Dockerfile
+
+
+Outputs:
+  SuggestedVFunction:
+    Description: "Suggested V Lambda Function ARN"
+    Value: !GetAtt SuggestedVFunction.Arn
+  SuggestedVFunctionIamRole:
+    Description: "Implicit IAM Role created for Suggested V function"
+    Value: !GetAtt SuggestedVFunctionRole.Arn
